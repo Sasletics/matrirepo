@@ -647,11 +647,13 @@ export class MemStorage implements IStorage {
     return totalPoints > 0 ? Math.round((points / totalPoints) * 100) : 0;
   }
   
-  private calculateAge(dob: Date): number {
+  private calculateAge(dob: Date | string): number {
     const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const m = today.getMonth() - dob.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    const birthDate = typeof dob === 'string' ? new Date(dob) : dob;
+    
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
     return age;
@@ -1377,11 +1379,13 @@ export class DatabaseStorage implements IStorage {
     return finalScore;
   }
   
-  private calculateAge(dob: Date): number {
+  private calculateAge(dob: Date | string): number {
     const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const m = today.getMonth() - dob.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    const birthDate = typeof dob === 'string' ? new Date(dob) : dob;
+    
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
     return age;
