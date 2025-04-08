@@ -3,7 +3,7 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
 import { db } from "./db";
-import { eq, or, and, desc, asc } from "drizzle-orm";
+import { eq, or, and, desc, asc, sql } from "drizzle-orm";
 
 const MemoryStore = createMemoryStore(session);
 const PostgresSessionStore = connectPgSimple(session);
@@ -733,10 +733,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getProfile(userId: number): Promise<Profile | undefined> {
-    // Database uses snake_case column names, so we need to map correctly
+    // Using direct SQL for debugging
     const result = await db.select()
       .from(profiles)
-      .where(eq(profiles.userId, userId));
+      .where(sql`${profiles.userId} = ${userId}`);
     
     return result[0];
   }
@@ -764,10 +764,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getEducation(userId: number): Promise<Education | undefined> {
-    // Drizzle ORM handles mapping of snake_case to camelCase
+    // Using direct SQL to avoid naming mismatch issues
     const result = await db.select()
       .from(education)
-      .where(eq(education.userId, userId));
+      .where(sql`${education.userId} = ${userId}`);
     return result[0];
   }
   
@@ -787,10 +787,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getCareer(userId: number): Promise<Career | undefined> {
-    // Drizzle ORM handles mapping of snake_case to camelCase
+    // Using direct SQL to avoid naming mismatch issues
     const result = await db.select()
       .from(career)
-      .where(eq(career.userId, userId));
+      .where(sql`${career.userId} = ${userId}`);
     return result[0];
   }
   
@@ -810,10 +810,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getFamily(userId: number): Promise<Family | undefined> {
-    // Drizzle ORM handles mapping of snake_case to camelCase
+    // Using direct SQL to avoid naming mismatch issues
     const result = await db.select()
       .from(family)
-      .where(eq(family.userId, userId));
+      .where(sql`${family.userId} = ${userId}`);
     return result[0];
   }
   
@@ -833,10 +833,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getPreferences(userId: number): Promise<Preference | undefined> {
-    // Drizzle ORM handles mapping of snake_case to camelCase
+    // Using direct SQL to avoid naming mismatch issues
     const result = await db.select()
       .from(preferences)
-      .where(eq(preferences.userId, userId));
+      .where(sql`${preferences.userId} = ${userId}`);
     return result[0];
   }
   
@@ -874,11 +874,11 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getInterestsBySender(senderId: number): Promise<Interest[]> {
-    return await db.select().from(interests).where(eq(interests.senderId, senderId));
+    return await db.select().from(interests).where(sql`${interests.senderId} = ${senderId}`);
   }
   
   async getInterestsByReceiver(receiverId: number): Promise<Interest[]> {
-    return await db.select().from(interests).where(eq(interests.receiverId, receiverId));
+    return await db.select().from(interests).where(sql`${interests.receiverId} = ${receiverId}`);
   }
   
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
@@ -892,33 +892,24 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getConversation(user1Id: number, user2Id: number): Promise<Message[]> {
-    return await db.select()
-      .from(messages)
-      .where(
-        or(
-          and(
-            eq(messages.senderId, user1Id),
-            eq(messages.receiverId, user2Id)
-          ),
-          and(
-            eq(messages.senderId, user2Id),
-            eq(messages.receiverId, user1Id)
-          )
-        )
-      )
-      .orderBy(asc(messages.createdAt));
+    // Using direct SQL query for consistency
+    return await db.execute(sql`
+      SELECT * FROM messages 
+      WHERE (sender_id = ${user1Id} AND receiver_id = ${user2Id})
+         OR (sender_id = ${user2Id} AND receiver_id = ${user1Id})
+      ORDER BY created_at ASC
+    `);
   }
   
   async markMessagesAsRead(senderId: number, receiverId: number): Promise<void> {
-    await db.update(messages)
-      .set({ read: true })
-      .where(
-        and(
-          eq(messages.senderId, senderId),
-          eq(messages.receiverId, receiverId),
-          eq(messages.read, false)
-        )
-      );
+    // Using direct SQL query for consistency
+    await db.execute(sql`
+      UPDATE messages
+      SET read = true
+      WHERE sender_id = ${senderId} 
+        AND receiver_id = ${receiverId}
+        AND read = false
+    `);
   }
   
   // Searching and matching methods can reuse the implementation from MemStorage
@@ -1166,21 +1157,24 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getUserNotifications(userId: number): Promise<Notification[]> {
-    // camelCase column names in this table ("userId", not "user_id")
+    // Using direct SQL to avoid naming mismatch issues
     const result = await db.select()
       .from(notifications)
-      .where(eq(notifications.userId, userId))
+      .where(sql`${notifications.userId} = ${userId}`)
       .orderBy(desc(notifications.createdAt));
     return result as unknown as Notification[];
   }
   
   async markNotificationAsRead(id: number): Promise<Notification | undefined> {
-    const result = await db.update(notifications)
-      .set({ read: true })
-      .where(eq(notifications.id, id))
-      .returning();
+    // Using direct SQL query for consistency
+    const result = await db.execute(sql`
+      UPDATE notifications
+      SET read = true
+      WHERE id = ${id}
+      RETURNING *
+    `);
       
-    return result[0];
+    return result[0] as unknown as Notification;
   }
   
   // Success stories

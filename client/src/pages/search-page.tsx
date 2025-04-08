@@ -225,7 +225,7 @@ export default function SearchPage() {
                               <SelectValue placeholder="Any marital status" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Any</SelectItem>
+                              <SelectItem value="any">Any</SelectItem>
                               {maritalStatusOptions.map((status) => (
                                 <SelectItem key={status} value={status}>{status}</SelectItem>
                               ))}
@@ -288,7 +288,7 @@ export default function SearchPage() {
                               <SelectValue placeholder="Any caste" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Any</SelectItem>
+                              <SelectItem value="any">Any</SelectItem>
                               {casteOptions.map((caste) => (
                                 <SelectItem key={caste} value={caste}>{caste}</SelectItem>
                               ))}
@@ -325,7 +325,7 @@ export default function SearchPage() {
                               <SelectValue placeholder="Any education" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Any</SelectItem>
+                              <SelectItem value="any">Any</SelectItem>
                               {educationOptions.map((edu) => (
                                 <SelectItem key={edu} value={edu}>{edu}</SelectItem>
                               ))}
@@ -343,7 +343,7 @@ export default function SearchPage() {
                               <SelectValue placeholder="Any occupation" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Any</SelectItem>
+                              <SelectItem value="any">Any</SelectItem>
                               {occupationOptions.map((occ) => (
                                 <SelectItem key={occ} value={occ}>{occ}</SelectItem>
                               ))}

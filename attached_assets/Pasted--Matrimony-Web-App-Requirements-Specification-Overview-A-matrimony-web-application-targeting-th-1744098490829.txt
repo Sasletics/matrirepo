@@ -1,0 +1,111 @@
+# Matrimony Web App Requirements Specification
+
+## Overview
+A matrimony web application targeting the Indian user base, starting with the Odia community. The platform will facilitate matchmaking via direct user interaction and optionally through matchmakers. It will include essential features like profile creation, search, subscription plans, and personalized recommendations.
+
+## Target Users
+- Brides/Grooms
+- Parents or guardians
+- Matchmakers
+- Admins
+
+## Core Features
+
+### 1. User Authentication & Registration
+- Email/Phone-based signup with OTP verification
+- Login with email/phone + password
+- Forgot/reset password
+- Optional referral code entry
+
+### 2. User Profile Management
+- Personal Details: Name, Age, Gender, Religion, Caste, etc.
+- Contact Info (hidden by default or visible to matched users)
+- Educational Background
+- Occupation and Income
+- Family Details
+- Horoscope (Date, Time, and Place of Birth)
+- Lifestyle & Interests
+- Profile photo upload with visibility settings
+- Profile completeness indicator
+
+### 3. Search & Matchmaking
+- Quick Search (based on primary filters like age, location, caste)
+- Advanced Search (includes profession, education, income, etc.)
+- Daily match suggestions
+- Smart recommendations (rule-based to start, AI-based later)
+- Horoscope matching feature (optional)
+
+### 4. Communication Tools
+- Send Interest / Like
+- In-app messaging (limited for free users)
+- Chat opens after mutual interest
+- Scheduled video call option (optional)
+- Block/report functionality
+
+### 5. Matchmaker Module
+- Matchmaker registration with profile & credentials
+- Dashboard to manage client profiles
+- Suggest matches
+- Initiate communication on behalf of users
+- Track communication & match history
+- Ratings and reviews from clients
+- Earnings dashboard
+
+### 6. Subscription & Monetization
+- Free tier with limited access
+- Premium subscription plans (monthly, quarterly, annual)
+- Matchmaker assistance packages
+- Payment gateway (UPI, cards, wallets)
+- Coupon/promo code system
+
+### 7. Notifications & Alerts
+- Push notifications (browser)
+- Email and SMS alerts (match suggestions, messages, etc.)
+- Weekly engagement summaries
+- Alerts for new messages, likes, and profile views
+
+### 8. Privacy & Security
+- Profile visibility settings
+- Control over contact info and photo access
+- Aadhaar/ID verification (optional)
+- Data encryption & secure storage
+- Abuse reporting and moderation system
+
+### 9. Admin Dashboard
+- User management
+- Matchmaker onboarding and control
+- Content management (FAQs, blogs, banners)
+- Complaint resolution
+- Analytics dashboard
+- Subscription and revenue tracking
+
+### 10. Optional/Nice-to-Have (Future Scope)
+- Success stories section
+- Matrimony events & webinars
+- Referral reward system
+- Regional language support (Odia, Hindi, English)
+- AI-based compatibility scoring
+
+## Tech Stack (Tentative)
+- Frontend: React.js or similar
+- Backend: Node.js / Python (Django/FastAPI)
+- Database: PostgreSQL / MongoDB
+- Hosting: AWS / Vercel / Netlify
+- Payment Gateway: Razorpay / Stripe (for NRIs)
+- SMS/Email: Twilio / SendGrid / SMSLane
+
+## Deployment Plan
+- Phase 1: MVP with user registration, profile creation, search, interest sending
+- Phase 2: Messaging, subscription plans, matchmaker module
+- Phase 3: Admin tools, horoscope matching, AI-based recommendations
+- Phase 4: Multilingual support, success stories, regional expansion
+
+## Compliance
+- Indian IT Act Compliance
+- GDPR (if targeting NRIs)
+- Data retention and deletion policy
+
+---
+
+End of Document
+
