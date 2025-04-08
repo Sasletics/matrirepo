@@ -158,7 +158,9 @@ export class MemStorage implements IStorage {
       id, 
       isVerified: false, 
       isProfileComplete: false, 
-      role: "user", 
+      role: "user",
+      subscriptionPlan: "free",
+      matchesRemaining: 10,
       createdAt: now
     };
     this.users.set(id, user);
@@ -715,6 +717,8 @@ export class DatabaseStorage implements IStorage {
       isVerified: false,
       isProfileComplete: false,
       role: "user",
+      subscriptionPlan: "free",
+      matchesRemaining: 10,
       createdAt: now
     }).returning();
     return result[0];
