@@ -4,6 +4,7 @@ import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
 import { db } from "./db";
 import { eq, or, and, desc, asc, sql } from "drizzle-orm";
+import { calculateHoroscopeCompatibility } from "./horoscope-matcher";
 
 const MemoryStore = createMemoryStore(session);
 const PostgresSessionStore = connectPgSimple(session);

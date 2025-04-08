@@ -5,6 +5,7 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import { insertProfileSchema, insertEducationSchema, insertCareerSchema, insertFamilySchema, insertPreferencesSchema, insertInterestSchema, insertMessageSchema, insertNotificationSchema, insertSuccessStorySchema } from "@shared/schema";
 import { generateOTP, createVerificationEmail, createPhoneVerificationMessage, sendEmail } from "./email";
+import { calculateHoroscopeCompatibility } from "./horoscope-matcher";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -698,6 +699,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next(error);
     }
   });
+
+  // Compatibility check by birth details
+  app.post("/api/birth-details-compatibility", async (req, res, next) => {
+    try {
+      const { person1, person2 } = req.body;
+      
+      if (!person1 || !person2) {
+        return res.status(400).json({ message: "Both person's details are required" });
+      }
+      
+      // Create horoscope objects from birth details (simplified)
+      const horoscope1 = {
+        userId: 0,
+        id: 0,
+        dateOfBirth: person1.dateOfBirth || "",
+        timeOfBirth: person1.timeOfBirth || null,
+        placeOfBirth: person1.placeOfBirth || null,
+        manglik: person1.manglik || false,
+        sun: person1.sun || null,
+        moon: person1.moon || null,
+        mars: person1.mars || null,
+        mercury: person1.mercury || null,
+        jupiter: person1.jupiter || null,
+        venus: person1.venus || null,
+        saturn: person1.saturn || null,
+        rahu: person1.rahu || null,
+        ketu: person1.ketu || null,
+        nakshatra: person1.nakshatra || null,
+        ascendant: person1.ascendant || null,
+        horoscopeChart: null
+      };
+      
+      const horoscope2 = {
+        userId: 0,
+        id: 0,
+        dateOfBirth: person2.dateOfBirth || "",
+        timeOfBirth: person2.timeOfBirth || null,
+        placeOfBirth: person2.placeOfBirth || null,
+        manglik: person2.manglik || false,
+        sun: person2.sun || null,
+        moon: person2.moon || null,
+        mars: person2.mars || null,
+        mercury: person2.mercury || null,
+        jupiter: person2.jupiter || null,
+        venus: person2.venus || null,
+        saturn: person2.saturn || null,
+        rahu: person2.rahu || null,
+        ketu: person2.ketu || null,
+        nakshatra: person2.nakshatra || null,
+        ascendant: person2.ascendant || null,
+        horoscopeChart: null
+      };
+      
+      // Calculate compatibility
+      const compatibilityScore = calculateHoroscopeCompatibility(horoscope1, horoscope2);
+      
+      res.status(200).json({ 
+        compatibilityScore,
+        compatibilityLevel: getCompatibilityLevel(compatibilityScore)
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Direct Horoscope Data Compatibility (without requiring user IDs)
+  app.post("/api/horoscope-direct-compatibility", async (req, res, next) => {
+    try {
+      const { horoscope1, horoscope2 } = req.body;
+      
+      if (!horoscope1 || !horoscope2) {
+        return res.status(400).json({ message: "Both horoscope data are required" });
+      }
+      
+      // Calculate compatibility directly using function from horoscope-matcher.ts
+      const compatibilityScore = calculateHoroscopeCompatibility(horoscope1, horoscope2);
+      
+      res.status(200).json({ 
+        compatibilityScore,
+        compatibilityLevel: getCompatibilityLevel(compatibilityScore)
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Horoscope Compatibility Route (using user IDs)
+  app.get("/api/horoscope-compatibility/:userId1/:userId2", async (req, res, next) => {
+    try {
+      const userId1 = parseInt(req.params.userId1);
+      const userId2 = parseInt(req.params.userId2);
+      
+      if (isNaN(userId1) || isNaN(userId2)) {
+        return res.status(400).json({ message: "Invalid user IDs" });
+      }
+      
+      // Fetch the horoscope data
+      const horoscope1 = await storage.getHoroscope(userId1);
+      const horoscope2 = await storage.getHoroscope(userId2);
+      
+      // Calculate compatibility directly using the function from horoscope-matcher.ts
+      const compatibilityScore = calculateHoroscopeCompatibility(horoscope1, horoscope2);
+      
+      res.status(200).json({ 
+        userId1, 
+        userId2, 
+        compatibilityScore,
+        compatibilityLevel: getCompatibilityLevel(compatibilityScore)
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Helper function to get compatibility level description
+  function getCompatibilityLevel(score: number): string {
+    if (score >= 80) return "Excellent Match";
+    if (score >= 60) return "Good Match";
+    if (score >= 40) return "Average Match";
+    if (score >= 20) return "Below Average Match";
+    return "Poor Match";
+  }
 
   const httpServer = createServer(app);
 
