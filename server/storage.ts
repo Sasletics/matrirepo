@@ -1,4 +1,4 @@
-import { users, profiles, education, career, family, preferences, interests, messages, User, Profile, Education, Career, Family, Preference, Interest, Message, InsertUser, InsertProfile, InsertEducation, InsertCareer, InsertFamily, InsertPreference, InsertInterest, InsertMessage, CompleteProfile } from "@shared/schema";
+import { users, profiles, education, career, family, preferences, interests, messages, notifications, successStories, User, Profile, Education, Career, Family, Preference, Interest, Message, Notification, SuccessStory, InsertUser, InsertProfile, InsertEducation, InsertCareer, InsertFamily, InsertPreference, InsertInterest, InsertMessage, InsertNotification, InsertSuccessStory, CompleteProfile } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
@@ -60,6 +60,19 @@ export interface IStorage {
   getCompleteProfile(userId: number): Promise<CompleteProfile | undefined>;
   getAllCompleteProfiles(): Promise<CompleteProfile[]>;
   
+  // Subscription management
+  updateSubscription(userId: number, plan: string, expiryDate: Date): Promise<User | undefined>;
+  decrementMatchCount(userId: number): Promise<User | undefined>;
+  
+  // Notifications
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: number): Promise<Notification[]>;
+  markNotificationAsRead(id: number): Promise<Notification | undefined>;
+  
+  // Success stories
+  createSuccessStory(story: InsertSuccessStory): Promise<SuccessStory>;
+  getSuccessStories(): Promise<SuccessStory[]>;
+  
   // Session storage
   sessionStore: session.SessionStore;
 }
@@ -74,6 +87,8 @@ export class MemStorage implements IStorage {
   private preferences: Map<number, Preference>;
   private interests: Map<number, Interest>;
   private messages: Map<number, Message>;
+  private notifications: Map<number, Notification>;
+  private successStories: Map<number, SuccessStory>;
   
   // Auto-incrementing IDs
   private currentUserId: number;
@@ -84,6 +99,8 @@ export class MemStorage implements IStorage {
   private currentPreferenceId: number;
   private currentInterestId: number;
   private currentMessageId: number;
+  private currentNotificationId: number;
+  private currentSuccessStoryId: number;
   
   // Session store
   sessionStore: session.SessionStore;
@@ -97,6 +114,8 @@ export class MemStorage implements IStorage {
     this.preferences = new Map();
     this.interests = new Map();
     this.messages = new Map();
+    this.notifications = new Map();
+    this.successStories = new Map();
     
     this.currentUserId = 1;
     this.currentProfileId = 1;
@@ -106,6 +125,8 @@ export class MemStorage implements IStorage {
     this.currentPreferenceId = 1;
     this.currentInterestId = 1;
     this.currentMessageId = 1;
+    this.currentNotificationId = 1;
+    this.currentSuccessStoryId = 1;
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24 hours
@@ -558,6 +579,106 @@ export class MemStorage implements IStorage {
     
     return completeProfiles;
   }
+  
+  // Subscription management
+  async updateSubscription(userId: number, plan: string, expiryDate: Date): Promise<User | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
+    // Set matches based on subscription plan
+    let matchesRemaining = 10; // Default for free plan
+    if (plan === 'premium') {
+      matchesRemaining = 9999; // Unlimited for premium
+    } else if (plan === 'matchmaker') {
+      matchesRemaining = 9999; // Unlimited for matchmaker with dedicated service
+    }
+    
+    const updates: Partial<User> = {
+      subscriptionPlan: plan,
+      subscriptionExpiry: expiryDate,
+      matchesRemaining
+    };
+    
+    return this.updateUser(userId, updates);
+  }
+  
+  async decrementMatchCount(userId: number): Promise<User | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
+    // Don't decrement if user has premium or matchmaker plan
+    if (user.subscriptionPlan === 'premium' || user.subscriptionPlan === 'matchmaker') {
+      return user;
+    }
+    
+    // Don't decrement if user has no matches remaining
+    if (user.matchesRemaining <= 0) {
+      return user;
+    }
+    
+    return this.updateUser(userId, {
+      matchesRemaining: user.matchesRemaining - 1
+    });
+  }
+  
+  // Notifications
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const id = this.currentNotificationId++;
+    const now = new Date();
+    const newNotification: Notification = {
+      ...notification,
+      id,
+      read: false,
+      createdAt: now
+    };
+    
+    this.notifications.set(id, newNotification);
+    return newNotification;
+  }
+  
+  async getUserNotifications(userId: number): Promise<Notification[]> {
+    return Array.from(this.notifications.values())
+      .filter(notification => notification.userId === userId)
+      .sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA; // Sort by newest first
+      });
+  }
+  
+  async markNotificationAsRead(id: number): Promise<Notification | undefined> {
+    const notification = this.notifications.get(id);
+    if (!notification) return undefined;
+    
+    const updatedNotification = { ...notification, read: true };
+    this.notifications.set(id, updatedNotification);
+    return updatedNotification;
+  }
+  
+  // Success stories
+  async createSuccessStory(story: InsertSuccessStory): Promise<SuccessStory> {
+    const id = this.currentSuccessStoryId++;
+    const now = new Date();
+    const newStory: SuccessStory = {
+      ...story,
+      id,
+      isPublished: false,
+      createdAt: now
+    };
+    
+    this.successStories.set(id, newStory);
+    return newStory;
+  }
+  
+  async getSuccessStories(): Promise<SuccessStory[]> {
+    return Array.from(this.successStories.values())
+      .filter(story => story.isPublished)
+      .sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA; // Sort by newest first
+      });
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -957,6 +1078,105 @@ export class DatabaseStorage implements IStorage {
     }
     
     return completeProfiles;
+  }
+  
+  // Subscription management
+  async updateSubscription(userId: number, plan: string, expiryDate: Date): Promise<User | undefined> {
+    // Set matches based on subscription plan
+    let matchesRemaining = 10; // Default for free plan
+    if (plan === 'premium') {
+      matchesRemaining = 9999; // Unlimited for premium
+    } else if (plan === 'matchmaker') {
+      matchesRemaining = 9999; // Unlimited for matchmaker with dedicated service
+    }
+    
+    const result = await db.update(users)
+      .set({
+        subscriptionPlan: plan,
+        subscriptionExpiry: expiryDate,
+        matchesRemaining
+      })
+      .where(eq(users.id, userId))
+      .returning();
+      
+    return result[0];
+  }
+  
+  async decrementMatchCount(userId: number): Promise<User | undefined> {
+    // Get the current user
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
+    // Don't decrement if user has premium or matchmaker plan
+    if (user.subscriptionPlan === 'premium' || user.subscriptionPlan === 'matchmaker') {
+      return user;
+    }
+    
+    // Don't decrement if user has no matches remaining
+    if (user.matchesRemaining <= 0) {
+      return user;
+    }
+    
+    // Update the match count
+    const result = await db.update(users)
+      .set({
+        matchesRemaining: user.matchesRemaining - 1
+      })
+      .where(eq(users.id, userId))
+      .returning();
+      
+    return result[0];
+  }
+  
+  // Notifications
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const now = new Date();
+    const result = await db.insert(notifications)
+      .values({
+        ...notification,
+        read: false,
+        createdAt: now
+      })
+      .returning();
+      
+    return result[0];
+  }
+  
+  async getUserNotifications(userId: number): Promise<Notification[]> {
+    return await db.select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+  
+  async markNotificationAsRead(id: number): Promise<Notification | undefined> {
+    const result = await db.update(notifications)
+      .set({ read: true })
+      .where(eq(notifications.id, id))
+      .returning();
+      
+    return result[0];
+  }
+  
+  // Success stories
+  async createSuccessStory(story: InsertSuccessStory): Promise<SuccessStory> {
+    const now = new Date();
+    const result = await db.insert(successStories)
+      .values({
+        ...story,
+        isPublished: false,
+        createdAt: now
+      })
+      .returning();
+      
+    return result[0];
+  }
+  
+  async getSuccessStories(): Promise<SuccessStory[]> {
+    return await db.select()
+      .from(successStories)
+      .where(eq(successStories.isPublished, true))
+      .orderBy(desc(successStories.createdAt));
   }
 }
 

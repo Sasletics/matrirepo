@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { z } from "zod";
-import { insertProfileSchema, insertEducationSchema, insertCareerSchema, insertFamilySchema, insertPreferencesSchema, insertInterestSchema, insertMessageSchema } from "@shared/schema";
+import { insertProfileSchema, insertEducationSchema, insertCareerSchema, insertFamilySchema, insertPreferencesSchema, insertInterestSchema, insertMessageSchema, insertNotificationSchema, insertSuccessStorySchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -450,6 +450,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recommendations = await storage.getRecommendedMatches(userId);
       
       res.status(200).json(recommendations);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Subscription Routes
+  app.put("/api/subscription", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const userId = req.user!.id;
+      const { plan, expiryDate } = req.body;
+      
+      if (!plan || !expiryDate) {
+        return res.status(400).json({ message: "Plan and expiry date are required" });
+      }
+      
+      const updatedUser = await storage.updateSubscription(userId, plan, new Date(expiryDate));
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.status(200).json(updatedUser);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/decrement-match", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const userId = req.user!.id;
+      const updatedUser = await storage.decrementMatchCount(userId);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.status(200).json(updatedUser);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Notification Routes
+  app.get("/api/notifications", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const userId = req.user!.id;
+      const notifications = await storage.getUserNotifications(userId);
+      
+      res.status(200).json(notifications);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/notification", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const userId = req.user!.id;
+      const notificationData = insertNotificationSchema.parse({ ...req.body, userId });
+      
+      const notification = await storage.createNotification(notificationData);
+      
+      res.status(201).json(notification);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.put("/api/notification/:id/read", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const notificationId = parseInt(req.params.id);
+      const updatedNotification = await storage.markNotificationAsRead(notificationId);
+      
+      if (!updatedNotification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      
+      res.status(200).json(updatedNotification);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Success Story Routes
+  app.get("/api/success-stories", async (req, res, next) => {
+    try {
+      const successStories = await storage.getSuccessStories();
+      
+      res.status(200).json(successStories);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/success-story", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const user1Id = req.user!.id;
+      const storyData = insertSuccessStorySchema.parse({ ...req.body, user1Id });
+      
+      const successStory = await storage.createSuccessStory(storyData);
+      
+      res.status(201).json(successStory);
     } catch (error) {
       next(error);
     }

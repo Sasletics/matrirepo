@@ -16,9 +16,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Heart, LogOut, Menu, MessageSquare, Search, Settings, User, Users } from "lucide-react";
+import { CreditCard, Heart, LogOut, Menu, MessageSquare, Search, Settings, User, Users } from "lucide-react";
 import { User as SelectUser } from "@shared/schema";
 import { apiRequest, getQueryFn, queryClient } from "@/lib/queryClient";
+import { NotificationCenter } from "./NotificationCenter";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -110,6 +111,12 @@ export function Navbar() {
                     <span>Matches</span>
                   </Button>
                 </Link>
+                <Link href="/subscription" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant={location === "/subscription" ? "default" : "ghost"} className="w-full justify-start gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    <span>Subscription</span>
+                  </Button>
+                </Link>
               </nav>
             </SheetContent>
           </Sheet>
@@ -129,6 +136,16 @@ export function Navbar() {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Only show notification center if user is logged in */}
+          {user && <NotificationCenter />}
+          
+          <Link href="/subscription">
+            <Button variant={location === "/subscription" ? "default" : "ghost"} size="sm" className="hidden md:flex items-center gap-1">
+              <CreditCard className="h-4 w-4" />
+              <span>Subscription</span>
+            </Button>
+          </Link>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
@@ -169,6 +186,12 @@ export function Navbar() {
                   <Link href="/matches" className="cursor-pointer">
                     <Heart className="mr-2 h-4 w-4" />
                     <span>Interests</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/subscription" className="cursor-pointer">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Subscription</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem disabled>

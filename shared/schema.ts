@@ -11,6 +11,9 @@ export const users = pgTable("users", {
   isVerified: boolean("is_verified").default(false),
   isProfileComplete: boolean("is_profile_complete").default(false),
   role: text("role").default("user"),
+  subscriptionPlan: text("subscription_plan").default("free"),
+  subscriptionExpiry: date("subscription_expiry"),
+  matchesRemaining: integer("matches_remaining").default(10),
   createdAt: date("created_at").defaultNow(),
 });
 
@@ -108,12 +111,38 @@ export const messages = pgTable("messages", {
   createdAt: date("created_at").defaultNow(),
 });
 
+// Notifications for users
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(), // message, interest, match, profile_view, system
+  content: text("content").notNull(),
+  relatedUserId: integer("related_user_id").references(() => users.id),
+  read: boolean("read").default(false),
+  createdAt: date("created_at").defaultNow(),
+});
+
+// Success stories
+export const successStories = pgTable("success_stories", {
+  id: serial("id").primaryKey(),
+  user1Id: integer("user1_id").notNull().references(() => users.id),
+  user2Id: integer("user2_id").notNull().references(() => users.id),
+  storyContent: text("story_content").notNull(),
+  weddingDate: date("wedding_date"),
+  isPublished: boolean("is_published").default(false),
+  photo: text("photo"),
+  createdAt: date("created_at").defaultNow(),
+});
+
 // Insert schemas using drizzle-zod
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   isVerified: true,
   isProfileComplete: true,
   role: true,
+  subscriptionPlan: true,
+  subscriptionExpiry: true,
+  matchesRemaining: true,
   createdAt: true,
 });
 
@@ -149,6 +178,18 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   createdAt: true,
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  read: true,
+  createdAt: true,
+});
+
+export const insertSuccessStorySchema = createInsertSchema(successStories).omit({
+  id: true,
+  isPublished: true,
+  createdAt: true,
+});
+
 // Type definitions
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -173,6 +214,12 @@ export type Interest = typeof interests.$inferSelect;
 
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
+export type InsertSuccessStory = z.infer<typeof insertSuccessStorySchema>;
+export type SuccessStory = typeof successStories.$inferSelect;
 
 // Complete profile type for easier frontend usage
 export type CompleteProfile = {
