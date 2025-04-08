@@ -1,0 +1,178 @@
+import { useState } from "react";
+import { Link, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import { Heart, LogOut, Menu, MessageSquare, Search, Settings, User, Users } from "lucide-react";
+
+export function Navbar() {
+  const [location] = useLocation();
+  const { user, logoutMutation } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  const { data: profileData } = useQuery({
+    queryKey: ["/api/my-profile"],
+    enabled: !!user,
+  });
+  
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
+  
+  const NavLinks = () => (
+    <>
+      <Link href="/">
+        <Button variant={location === "/" ? "default" : "ghost"} className="gap-2">
+          <Users className="h-4 w-4" />
+          <span>Home</span>
+        </Button>
+      </Link>
+      <Link href="/search">
+        <Button variant={location === "/search" ? "default" : "ghost"} className="gap-2">
+          <Search className="h-4 w-4" />
+          <span>Search</span>
+        </Button>
+      </Link>
+      <Link href="/matches">
+        <Button variant={location === "/matches" ? "default" : "ghost"} className="gap-2">
+          <Heart className="h-4 w-4" />
+          <span>Matches</span>
+        </Button>
+      </Link>
+    </>
+  );
+  
+  return (
+    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild className="lg:hidden">
+              <Button variant="ghost" size="icon">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle Menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="flex flex-col">
+              <div className="px-2">
+                <Link href="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                  <span className="font-bold text-xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                    OdiaMatrimony
+                  </span>
+                </Link>
+              </div>
+              <nav className="flex flex-col gap-4 mt-8">
+                <Link href="/" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant={location === "/" ? "default" : "ghost"} className="w-full justify-start gap-2">
+                    <Users className="h-4 w-4" />
+                    <span>Home</span>
+                  </Button>
+                </Link>
+                <Link href="/search" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant={location === "/search" ? "default" : "ghost"} className="w-full justify-start gap-2">
+                    <Search className="h-4 w-4" />
+                    <span>Search</span>
+                  </Button>
+                </Link>
+                <Link href="/matches" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant={location === "/matches" ? "default" : "ghost"} className="w-full justify-start gap-2">
+                    <Heart className="h-4 w-4" />
+                    <span>Matches</span>
+                  </Button>
+                </Link>
+              </nav>
+            </SheetContent>
+          </Sheet>
+          
+          <Link href="/" className="flex items-center gap-2">
+            <span className="font-bold text-xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent hidden md:block">
+              OdiaMatrimony
+            </span>
+            <span className="font-bold text-xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent md:hidden">
+              OM
+            </span>
+          </Link>
+          
+          <nav className="hidden lg:flex items-center gap-1 ml-4">
+            <NavLinks />
+          </nav>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <Avatar className="h-8 w-8">
+                  {profileData?.profile?.profilePicture ? (
+                    <AvatarImage src={profileData.profile.profilePicture} alt={user?.username || ""} />
+                  ) : (
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {user?.username?.charAt(0).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuGroup>
+                {profileData?.profile ? (
+                  <div className="px-2 py-1.5 text-sm">
+                    <div className="font-medium">{profileData.profile.fullName}</div>
+                    <div className="text-muted-foreground text-xs">{user?.username}</div>
+                  </div>
+                ) : (
+                  <div className="px-2 py-1.5 text-sm">
+                    <div className="font-medium">{user?.username}</div>
+                    <div className="text-muted-foreground text-xs">Complete your profile</div>
+                  </div>
+                )}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem asChild>
+                  <Link href={`/profile/${user?.id}`} className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>My Profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/matches" className="cursor-pointer">
+                    <Heart className="mr-2 h-4 w-4" />
+                    <span>Interests</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  <span>Messages</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </header>
+  );
+}
