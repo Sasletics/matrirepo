@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, date, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, date, json, time, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -8,7 +8,14 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
+  phoneNumber: text("phoneNumber").unique(),
   isVerified: boolean("is_verified").default(false),
+  emailVerified: boolean("email_verified").default(false),
+  phoneVerified: boolean("phone_verified").default(false),
+  verificationToken: text("verification_token"),
+  verificationTokenExpiry: date("verification_token_expiry"),
+  referralCode: text("referral_code").unique(),
+  referredBy: text("referred_by"),
   isProfileComplete: boolean("is_profile_complete").default(false),
   role: text("role").default("user"),
   subscriptionPlan: text("subscription_plan").default("free"),
@@ -122,6 +129,26 @@ export const notifications = pgTable("notifications", {
   createdAt: date("created_at").defaultNow(),
 });
 
+// Horoscope details
+export const horoscope = pgTable("horoscope", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  dateOfBirth: date("date_of_birth").notNull(),
+  timeOfBirth: time("time_of_birth"),
+  placeOfBirth: text("place_of_birth"),
+  moon: text("moon_sign"),
+  sun: text("sun_sign"),
+  venus: text("venus_sign"),
+  nakshatra: text("nakshatra"),
+  manglik: boolean("manglik"),
+  kuja: boolean("kuja_dosha"),
+  otherDoshas: text("other_doshas"),
+  rashi: text("rashi"),
+  horoscopeNotes: text("horoscope_notes"),
+  horoscopeChart: text("horoscope_chart"), // Could be a URL to a stored image
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Success stories
 export const successStories = pgTable("success_stories", {
   id: serial("id").primaryKey(),
@@ -138,6 +165,11 @@ export const successStories = pgTable("success_stories", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   isVerified: true,
+  emailVerified: true,
+  phoneVerified: true,
+  verificationToken: true,
+  verificationTokenExpiry: true,
+  referralCode: true,
   isProfileComplete: true,
   role: true,
   subscriptionPlan: true,
@@ -184,6 +216,11 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   createdAt: true,
 });
 
+export const insertHoroscopeSchema = createInsertSchema(horoscope).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertSuccessStorySchema = createInsertSchema(successStories).omit({
   id: true,
   isPublished: true,
@@ -218,6 +255,9 @@ export type Message = typeof messages.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
 
+export type InsertHoroscope = z.infer<typeof insertHoroscopeSchema>;
+export type Horoscope = typeof horoscope.$inferSelect;
+
 export type InsertSuccessStory = z.infer<typeof insertSuccessStorySchema>;
 export type SuccessStory = typeof successStories.$inferSelect;
 
@@ -229,4 +269,5 @@ export type CompleteProfile = {
   career: Career;
   family: Family;
   preferences: Preference;
+  horoscope?: Horoscope;
 };

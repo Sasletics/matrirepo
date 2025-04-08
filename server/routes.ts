@@ -4,10 +4,141 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { z } from "zod";
 import { insertProfileSchema, insertEducationSchema, insertCareerSchema, insertFamilySchema, insertPreferencesSchema, insertInterestSchema, insertMessageSchema, insertNotificationSchema, insertSuccessStorySchema } from "@shared/schema";
+import { generateOTP, createVerificationEmail, createPhoneVerificationMessage, sendEmail } from "./email";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
+
+  // Verification Routes
+  app.post("/api/send-verification-email", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.email) {
+        return res.status(400).json({ message: "User email not found" });
+      }
+      
+      // Generate a 6-digit OTP
+      const otp = generateOTP();
+      
+      // Set expiry to 24 hours from now
+      const expiry = new Date();
+      expiry.setHours(expiry.getHours() + 24);
+      
+      // Save token to user record
+      await storage.setVerificationToken(userId, otp, expiry);
+      
+      // Create verification email
+      const emailParams = createVerificationEmail(user.email, otp);
+      
+      // In a production environment, this would send a real email via SendGrid or another provider
+      // For now, we'll log it and simulate success
+      console.log("Would send email:", emailParams);
+      
+      // We'll need to replace this with actual email sending once we integrate with SendGrid
+      // const result = await sendEmail(emailParams);
+      const result = true; // Simulate success
+      
+      if (result) {
+        res.status(200).json({ message: "Verification email sent" });
+      } else {
+        res.status(500).json({ message: "Failed to send verification email" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/send-verification-sms", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.phoneNumber) {
+        return res.status(400).json({ message: "User phone number not found" });
+      }
+      
+      // Generate a 6-digit OTP
+      const otp = generateOTP();
+      
+      // Set expiry to 24 hours from now
+      const expiry = new Date();
+      expiry.setHours(expiry.getHours() + 24);
+      
+      // Save token to user record
+      await storage.setVerificationToken(userId, otp, expiry);
+      
+      // Create verification SMS message
+      const message = createPhoneVerificationMessage(otp);
+      
+      // In a production environment, this would send a real SMS via Twilio or another provider
+      // For now, we'll log it and simulate success
+      console.log("Would send SMS to", user.phoneNumber, ":", message);
+      
+      // Simulate success for now
+      const result = true;
+      
+      if (result) {
+        res.status(200).json({ message: "Verification SMS sent" });
+      } else {
+        res.status(500).json({ message: "Failed to send verification SMS" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/verify-email", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const userId = req.user!.id;
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Verification token is required" });
+      }
+      
+      const result = await storage.verifyEmail(userId, token);
+      
+      if (result) {
+        res.status(200).json({ message: "Email successfully verified" });
+      } else {
+        res.status(400).json({ message: "Invalid or expired verification token" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/verify-phone", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      
+      const userId = req.user!.id;
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Verification token is required" });
+      }
+      
+      const result = await storage.verifyPhone(userId, token);
+      
+      if (result) {
+        res.status(200).json({ message: "Phone successfully verified" });
+      } else {
+        res.status(400).json({ message: "Invalid or expired verification token" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
   
   // Profile Routes
   app.post("/api/profile", async (req, res, next) => {

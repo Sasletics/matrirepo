@@ -8,6 +8,7 @@ import MatchesPage from "./pages/matches-page";
 import ProfilePage from "./pages/profile-page";
 import CreateProfilePage from "./pages/create-profile-page";
 import SubscriptionPage from "./pages/subscription-page";
+import VerificationPage from "./pages/verification-page";
 import { ProtectedRoute } from "./lib/protected-route";
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
         <ProtectedRoute path="/profile/:id" component={ProfilePage} />
         <ProtectedRoute path="/create-profile" component={CreateProfilePage} />
         <ProtectedRoute path="/subscription" component={SubscriptionPage} />
+        <ProtectedRoute path="/verification" component={VerificationPage} />
         
         {/* Fallback route */}
         <Route component={NotFound} />

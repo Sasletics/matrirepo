@@ -1,4 +1,4 @@
-import { users, profiles, education, career, family, preferences, interests, messages, notifications, successStories, User, Profile, Education, Career, Family, Preference, Interest, Message, Notification, SuccessStory, InsertUser, InsertProfile, InsertEducation, InsertCareer, InsertFamily, InsertPreference, InsertInterest, InsertMessage, InsertNotification, InsertSuccessStory, CompleteProfile } from "@shared/schema";
+import { users, profiles, education, career, family, horoscope, preferences, interests, messages, notifications, successStories, User, Profile, Education, Career, Family, Horoscope, Preference, Interest, Message, Notification, SuccessStory, InsertUser, InsertProfile, InsertEducation, InsertCareer, InsertFamily, InsertHoroscope, InsertPreference, InsertInterest, InsertMessage, InsertNotification, InsertSuccessStory, CompleteProfile } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
@@ -15,6 +15,11 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<User>): Promise<User | undefined>;
+  
+  // Verification
+  setVerificationToken(userId: number, token: string, expiry: Date): Promise<User | undefined>;
+  verifyEmail(userId: number, token: string): Promise<boolean>;
+  verifyPhone(userId: number, token: string): Promise<boolean>;
   
   // Profile management
   getProfile(userId: number): Promise<Profile | undefined>;
@@ -35,6 +40,11 @@ export interface IStorage {
   getFamily(userId: number): Promise<Family | undefined>;
   createFamily(family: InsertFamily): Promise<Family>;
   updateFamily(userId: number, updates: Partial<Family>): Promise<Family | undefined>;
+  
+  // Horoscope
+  getHoroscope(userId: number): Promise<Horoscope | undefined>;
+  createHoroscope(horoscope: InsertHoroscope): Promise<Horoscope>;
+  updateHoroscope(userId: number, updates: Partial<Horoscope>): Promise<Horoscope | undefined>;
   
   // Preferences
   getPreferences(userId: number): Promise<Preference | undefined>;
@@ -60,6 +70,9 @@ export interface IStorage {
   getCompleteProfile(userId: number): Promise<CompleteProfile | undefined>;
   getAllCompleteProfiles(): Promise<CompleteProfile[]>;
   
+  // Horoscope matching
+  matchHoroscopes(userId1: number, userId2: number): Promise<number>;
+  
   // Subscription management
   updateSubscription(userId: number, plan: string, expiryDate: Date): Promise<User | undefined>;
   decrementMatchCount(userId: number): Promise<User | undefined>;
@@ -84,6 +97,7 @@ export class MemStorage implements IStorage {
   private educations: Map<number, Education>;
   private careers: Map<number, Career>;
   private families: Map<number, Family>;
+  private horoscopes: Map<number, Horoscope>;
   private preferences: Map<number, Preference>;
   private interests: Map<number, Interest>;
   private messages: Map<number, Message>;
@@ -96,6 +110,7 @@ export class MemStorage implements IStorage {
   private currentEducationId: number;
   private currentCareerId: number;
   private currentFamilyId: number;
+  private currentHoroscopeId: number;
   private currentPreferenceId: number;
   private currentInterestId: number;
   private currentMessageId: number;
@@ -111,6 +126,7 @@ export class MemStorage implements IStorage {
     this.educations = new Map();
     this.careers = new Map();
     this.families = new Map();
+    this.horoscopes = new Map();
     this.preferences = new Map();
     this.interests = new Map();
     this.messages = new Map();
@@ -122,6 +138,7 @@ export class MemStorage implements IStorage {
     this.currentEducationId = 1;
     this.currentCareerId = 1;
     this.currentFamilyId = 1;
+    this.currentHoroscopeId = 1;
     this.currentPreferenceId = 1;
     this.currentInterestId = 1;
     this.currentMessageId = 1;
@@ -174,6 +191,58 @@ export class MemStorage implements IStorage {
     const updatedUser = { ...user, ...updates };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+  
+  // Verification methods
+  async setVerificationToken(userId: number, token: string, expiry: Date): Promise<User | undefined> {
+    return this.updateUser(userId, {
+      verificationToken: token,
+      verificationTokenExpiry: expiry
+    });
+  }
+  
+  async verifyEmail(userId: number, token: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user || !user.verificationToken || user.verificationToken !== token) {
+      return false;
+    }
+    
+    // Check if token is expired
+    if (user.verificationTokenExpiry && new Date() > new Date(user.verificationTokenExpiry)) {
+      return false;
+    }
+    
+    // Update user verification status
+    await this.updateUser(userId, {
+      emailVerified: true,
+      isVerified: true, // If either email or phone is verified, user is verified
+      verificationToken: null, // Clear the token
+      verificationTokenExpiry: null
+    });
+    
+    return true;
+  }
+  
+  async verifyPhone(userId: number, token: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user || !user.verificationToken || user.verificationToken !== token) {
+      return false;
+    }
+    
+    // Check if token is expired
+    if (user.verificationTokenExpiry && new Date() > new Date(user.verificationTokenExpiry)) {
+      return false;
+    }
+    
+    // Update user verification status
+    await this.updateUser(userId, {
+      phoneVerified: true,
+      isVerified: true, // If either email or phone is verified, user is verified
+      verificationToken: null, // Clear the token
+      verificationTokenExpiry: null
+    });
+    
+    return true;
   }
   
   // Profile management
@@ -273,6 +342,121 @@ export class MemStorage implements IStorage {
     const updatedFamily = { ...family, ...updates };
     this.families.set(family.id, updatedFamily);
     return updatedFamily;
+  }
+  
+  // Horoscope
+  async getHoroscope(userId: number): Promise<Horoscope | undefined> {
+    return Array.from(this.horoscopes.values()).find(
+      (horoscope) => horoscope.userId === userId,
+    );
+  }
+  
+  async createHoroscope(insertHoroscope: InsertHoroscope): Promise<Horoscope> {
+    const id = this.currentHoroscopeId++;
+    const horoscope: Horoscope = { ...insertHoroscope, id };
+    this.horoscopes.set(id, horoscope);
+    return horoscope;
+  }
+  
+  async updateHoroscope(userId: number, updates: Partial<Horoscope>): Promise<Horoscope | undefined> {
+    const horoscope = await this.getHoroscope(userId);
+    if (!horoscope) return undefined;
+    
+    const updatedHoroscope = { ...horoscope, ...updates };
+    this.horoscopes.set(horoscope.id, updatedHoroscope);
+    return updatedHoroscope;
+  }
+  
+  // Horoscope matching
+  async matchHoroscopes(userId1: number, userId2: number): Promise<number> {
+    const horoscope1 = await this.getHoroscope(userId1);
+    const horoscope2 = await this.getHoroscope(userId2);
+    
+    if (!horoscope1 || !horoscope2) return 0;
+    
+    // Implement horoscope matching logic based on compatibility of signs, stars, etc.
+    // This is a simple implementation - can be expanded with detailed Vedic astrology rules
+    
+    let matchPoints = 0;
+    const totalPoints = 36; // Traditional astrology uses 36 points system
+    
+    // Zodiac sign compatibility - 8 points
+    if (this.areZodiacSignsCompatible(horoscope1.zodiacSign, horoscope2.zodiacSign)) {
+      matchPoints += 8;
+    }
+    
+    // Nakshatra compatibility - 10 points
+    if (this.areNakshatrasCompatible(horoscope1.nakshatra, horoscope2.nakshatra)) {
+      matchPoints += 10;
+    }
+    
+    // Mangal Dosha check - 8 points
+    if (horoscope1.hasMangalDosha === horoscope2.hasMangalDosha) {
+      matchPoints += 8;
+    } else if (!horoscope1.hasMangalDosha && !horoscope2.hasMangalDosha) {
+      matchPoints += 8;
+    }
+    
+    // Planetary positions - 10 points (simplified)
+    if (horoscope1.moonSign === horoscope2.moonSign) {
+      matchPoints += 5;
+    }
+    if (horoscope1.venusSign === horoscope2.venusSign) {
+      matchPoints += 5;
+    }
+    
+    // Calculate percentage match
+    return Math.round((matchPoints / totalPoints) * 100);
+  }
+  
+  private areZodiacSignsCompatible(sign1: string, sign2: string): boolean {
+    // Simplified zodiac compatibility
+    const compatiblePairs = [
+      ['Aries', 'Leo'], ['Aries', 'Sagittarius'], 
+      ['Taurus', 'Virgo'], ['Taurus', 'Capricorn'],
+      ['Gemini', 'Libra'], ['Gemini', 'Aquarius'],
+      ['Cancer', 'Scorpio'], ['Cancer', 'Pisces'],
+      ['Leo', 'Aries'], ['Leo', 'Sagittarius'],
+      ['Virgo', 'Taurus'], ['Virgo', 'Capricorn'],
+      ['Libra', 'Gemini'], ['Libra', 'Aquarius'],
+      ['Scorpio', 'Cancer'], ['Scorpio', 'Pisces'],
+      ['Sagittarius', 'Aries'], ['Sagittarius', 'Leo'],
+      ['Capricorn', 'Taurus'], ['Capricorn', 'Virgo'],
+      ['Aquarius', 'Gemini'], ['Aquarius', 'Libra'],
+      ['Pisces', 'Cancer'], ['Pisces', 'Scorpio']
+    ];
+    
+    return compatiblePairs.some(pair => pair[0] === sign1 && pair[1] === sign2);
+  }
+  
+  private areNakshatrasCompatible(nakshatra1: string, nakshatra2: string): boolean {
+    // Simplified compatibility check based on nakshatras
+    // This is a very simplified version - real implementation would have Nadi, Varna, etc. checks
+    const nakstraGroups = [
+      ['Ashwini', 'Magha', 'Moola'],
+      ['Bharani', 'Purva Phalguni', 'Purva Ashadha'],
+      ['Krittika', 'Uttara Phalguni', 'Uttara Ashadha'],
+      ['Rohini', 'Hasta', 'Shravana'],
+      ['Mrigasira', 'Chitra', 'Dhanishta'],
+      ['Ardra', 'Swati', 'Shatabhisha'],
+      ['Punarvasu', 'Vishakha', 'Purva Bhadrapada'],
+      ['Pushya', 'Anuradha', 'Uttara Bhadrapada'],
+      ['Ashlesha', 'Jyeshtha', 'Revati']
+    ];
+    
+    // Find which groups the nakshatras belong to
+    let group1 = -1;
+    let group2 = -1;
+    
+    for (let i = 0; i < nakstraGroups.length; i++) {
+      if (nakstraGroups[i].includes(nakshatra1)) group1 = i;
+      if (nakstraGroups[i].includes(nakshatra2)) group2 = i;
+    }
+    
+    if (group1 === -1 || group2 === -1) return false;
+    
+    // In simplified compatibility, groups should not be the same or adjacent
+    return Math.abs(group1 - group2) > 1 && group1 !== group2;
   }
   
   // Preferences
@@ -557,6 +741,7 @@ export class MemStorage implements IStorage {
     const career = await this.getCareer(userId);
     const family = await this.getFamily(userId);
     const preferences = await this.getPreferences(userId);
+    const horoscope = await this.getHoroscope(userId);
     
     return {
       user,
@@ -564,7 +749,8 @@ export class MemStorage implements IStorage {
       education,
       career,
       family,
-      preferences
+      preferences,
+      horoscope
     };
   }
   
@@ -732,6 +918,58 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
+  // Verification methods
+  async setVerificationToken(userId: number, token: string, expiry: Date): Promise<User | undefined> {
+    return this.updateUser(userId, {
+      verificationToken: token,
+      verificationTokenExpiry: expiry
+    });
+  }
+  
+  async verifyEmail(userId: number, token: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user || !user.verificationToken || user.verificationToken !== token) {
+      return false;
+    }
+    
+    // Check if token is expired
+    if (user.verificationTokenExpiry && new Date() > new Date(user.verificationTokenExpiry)) {
+      return false;
+    }
+    
+    // Update user verification status
+    await this.updateUser(userId, {
+      emailVerified: true,
+      isVerified: true, // If either email or phone is verified, user is verified
+      verificationToken: null, // Clear the token
+      verificationTokenExpiry: null
+    });
+    
+    return true;
+  }
+  
+  async verifyPhone(userId: number, token: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user || !user.verificationToken || user.verificationToken !== token) {
+      return false;
+    }
+    
+    // Check if token is expired
+    if (user.verificationTokenExpiry && new Date() > new Date(user.verificationTokenExpiry)) {
+      return false;
+    }
+    
+    // Update user verification status
+    await this.updateUser(userId, {
+      phoneVerified: true,
+      isVerified: true, // If either email or phone is verified, user is verified
+      verificationToken: null, // Clear the token
+      verificationTokenExpiry: null
+    });
+    
+    return true;
+  }
+  
   async getProfile(userId: number): Promise<Profile | undefined> {
     // Using direct SQL for debugging
     const result = await db.select()
@@ -830,6 +1068,122 @@ export class DatabaseStorage implements IStorage {
       .where(eq(family.userId, userId))
       .returning();
     return result[0];
+  }
+  
+  // Horoscope
+  async getHoroscope(userId: number): Promise<Horoscope | undefined> {
+    // Using direct SQL to avoid naming mismatch issues
+    const result = await db.select()
+      .from(horoscope)
+      .where(sql`${horoscope.userId} = ${userId}`);
+    return result[0];
+  }
+  
+  async createHoroscope(insertHoroscope: InsertHoroscope): Promise<Horoscope> {
+    const result = await db.insert(horoscope)
+      .values(insertHoroscope)
+      .returning();
+    return result[0];
+  }
+  
+  async updateHoroscope(userId: number, updates: Partial<Horoscope>): Promise<Horoscope | undefined> {
+    const result = await db.update(horoscope)
+      .set(updates)
+      .where(eq(horoscope.userId, userId))
+      .returning();
+    return result[0];
+  }
+  
+  // Horoscope matching
+  async matchHoroscopes(userId1: number, userId2: number): Promise<number> {
+    const horoscope1 = await this.getHoroscope(userId1);
+    const horoscope2 = await this.getHoroscope(userId2);
+    
+    if (!horoscope1 || !horoscope2) return 0;
+    
+    // Implement horoscope matching logic based on compatibility of signs, stars, etc.
+    // This is a simple implementation - can be expanded with detailed Vedic astrology rules
+    
+    let matchPoints = 0;
+    const totalPoints = 36; // Traditional astrology uses 36 points system
+    
+    // Zodiac sign compatibility - 8 points
+    if (this.areZodiacSignsCompatible(horoscope1.zodiacSign, horoscope2.zodiacSign)) {
+      matchPoints += 8;
+    }
+    
+    // Nakshatra compatibility - 10 points
+    if (this.areNakshatrasCompatible(horoscope1.nakshatra, horoscope2.nakshatra)) {
+      matchPoints += 10;
+    }
+    
+    // Mangal Dosha check - 8 points
+    if (horoscope1.hasMangalDosha === horoscope2.hasMangalDosha) {
+      matchPoints += 8;
+    } else if (!horoscope1.hasMangalDosha && !horoscope2.hasMangalDosha) {
+      matchPoints += 8;
+    }
+    
+    // Planetary positions - 10 points (simplified)
+    if (horoscope1.moonSign === horoscope2.moonSign) {
+      matchPoints += 5;
+    }
+    if (horoscope1.venusSign === horoscope2.venusSign) {
+      matchPoints += 5;
+    }
+    
+    // Calculate percentage match
+    return Math.round((matchPoints / totalPoints) * 100);
+  }
+  
+  private areZodiacSignsCompatible(sign1: string, sign2: string): boolean {
+    // Simplified zodiac compatibility
+    const compatiblePairs = [
+      ['Aries', 'Leo'], ['Aries', 'Sagittarius'], 
+      ['Taurus', 'Virgo'], ['Taurus', 'Capricorn'],
+      ['Gemini', 'Libra'], ['Gemini', 'Aquarius'],
+      ['Cancer', 'Scorpio'], ['Cancer', 'Pisces'],
+      ['Leo', 'Aries'], ['Leo', 'Sagittarius'],
+      ['Virgo', 'Taurus'], ['Virgo', 'Capricorn'],
+      ['Libra', 'Gemini'], ['Libra', 'Aquarius'],
+      ['Scorpio', 'Cancer'], ['Scorpio', 'Pisces'],
+      ['Sagittarius', 'Aries'], ['Sagittarius', 'Leo'],
+      ['Capricorn', 'Taurus'], ['Capricorn', 'Virgo'],
+      ['Aquarius', 'Gemini'], ['Aquarius', 'Libra'],
+      ['Pisces', 'Cancer'], ['Pisces', 'Scorpio']
+    ];
+    
+    return compatiblePairs.some(pair => pair[0] === sign1 && pair[1] === sign2);
+  }
+  
+  private areNakshatrasCompatible(nakshatra1: string, nakshatra2: string): boolean {
+    // Simplified compatibility check based on nakshatras
+    // This is a very simplified version - real implementation would have Nadi, Varna, etc. checks
+    const nakstraGroups = [
+      ['Ashwini', 'Magha', 'Moola'],
+      ['Bharani', 'Purva Phalguni', 'Purva Ashadha'],
+      ['Krittika', 'Uttara Phalguni', 'Uttara Ashadha'],
+      ['Rohini', 'Hasta', 'Shravana'],
+      ['Mrigasira', 'Chitra', 'Dhanishta'],
+      ['Ardra', 'Swati', 'Shatabhisha'],
+      ['Punarvasu', 'Vishakha', 'Purva Bhadrapada'],
+      ['Pushya', 'Anuradha', 'Uttara Bhadrapada'],
+      ['Ashlesha', 'Jyeshtha', 'Revati']
+    ];
+    
+    // Find which groups the nakshatras belong to
+    let group1 = -1;
+    let group2 = -1;
+    
+    for (let i = 0; i < nakstraGroups.length; i++) {
+      if (nakstraGroups[i].includes(nakshatra1)) group1 = i;
+      if (nakstraGroups[i].includes(nakshatra2)) group2 = i;
+    }
+    
+    if (group1 === -1 || group2 === -1) return false;
+    
+    // In simplified compatibility, groups should not be the same or adjacent
+    return Math.abs(group1 - group2) > 1 && group1 !== group2;
   }
   
   async getPreferences(userId: number): Promise<Preference | undefined> {
@@ -1067,13 +1421,16 @@ export class DatabaseStorage implements IStorage {
       location: [] 
     } as Preference;
     
+    const horoscopeData = await this.getHoroscope(userId);
+    
     return {
       user,
       profile,
       education: educationData,
       career: careerData,
       family: familyData,
-      preferences: preferencesData
+      preferences: preferencesData,
+      horoscope: horoscopeData
     };
   }
   

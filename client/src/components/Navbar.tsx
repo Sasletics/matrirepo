@@ -16,7 +16,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CreditCard, Heart, LogOut, Menu, MessageSquare, Search, Settings, User, Users } from "lucide-react";
+import { CreditCard, Heart, LogOut, Menu, MessageSquare, Search, Settings, User, Users, Shield } from "lucide-react";
 import { User as SelectUser } from "@shared/schema";
 import { apiRequest, getQueryFn, queryClient } from "@/lib/queryClient";
 import { NotificationCenter } from "./NotificationCenter";
@@ -117,6 +117,12 @@ export function Navbar() {
                     <span>Subscription</span>
                   </Button>
                 </Link>
+                <Link href="/verification" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant={location === "/verification" ? "default" : "ghost"} className="w-full justify-start gap-2">
+                    <Shield className="h-4 w-4" />
+                    <span>Verification</span>
+                  </Button>
+                </Link>
               </nav>
             </SheetContent>
           </Sheet>
@@ -192,6 +198,12 @@ export function Navbar() {
                   <Link href="/subscription" className="cursor-pointer">
                     <CreditCard className="mr-2 h-4 w-4" />
                     <span>Subscription</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/verification" className="cursor-pointer">
+                    <Shield className="mr-2 h-4 w-4" />
+                    <span>Verification</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem disabled>
