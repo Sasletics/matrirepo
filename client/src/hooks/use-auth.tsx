@@ -3,7 +3,6 @@ import {
   useQuery,
   useMutation,
   UseMutationResult,
-  QueryClientProvider,
 } from "@tanstack/react-query";
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
@@ -22,8 +21,8 @@ type LoginData = Pick<InsertUser, "username" | "password">;
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-// Auth Context Provider Component
-function AuthContextProvider({ children }: { children: ReactNode }) {
+// Auth Provider Component
+export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const {
     data: user,
@@ -106,15 +105,6 @@ function AuthContextProvider({ children }: { children: ReactNode }) {
     >
       {children}
     </AuthContext.Provider>
-  );
-}
-
-// Public AuthProvider that wraps the context provider with QueryClientProvider
-export function AuthProvider({ children }: { children: ReactNode }) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthContextProvider>{children}</AuthContextProvider>
-    </QueryClientProvider>
   );
 }
 

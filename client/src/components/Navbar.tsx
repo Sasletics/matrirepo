@@ -15,18 +15,34 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Heart, LogOut, Menu, MessageSquare, Search, Settings, User, Users } from "lucide-react";
+import { User as SelectUser } from "@shared/schema";
+import { apiRequest, getQueryFn, queryClient } from "@/lib/queryClient";
 
 export function Navbar() {
   const [location] = useLocation();
-  const { user, logoutMutation } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Fetch user data directly
+  const { data: user } = useQuery<SelectUser | undefined, Error>({
+    queryKey: ["/api/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
   
   const { data: profileData } = useQuery({
     queryKey: ["/api/my-profile"],
     enabled: !!user,
+  });
+  
+  // Create logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/logout");
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(["/api/user"], null);
+    },
   });
   
   const handleLogout = () => {

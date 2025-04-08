@@ -4,15 +4,20 @@ import { ProfileCard } from "@/components/ProfileCard";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CompleteProfile } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
+import { CompleteProfile, User as SelectUser } from "@shared/schema";
 import { Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
+import { getQueryFn } from "@/lib/queryClient";
 
 export default function HomePage() {
-  const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Fetch user data directly
+  const { data: user } = useQuery<SelectUser | undefined, Error>({
+    queryKey: ["/api/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
   
   // Fetch user profile
   const { data: myProfile, isLoading: isProfileLoading } = useQuery({
