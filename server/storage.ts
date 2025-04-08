@@ -711,7 +711,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createUser(insertUser: InsertUser): Promise<User> {
-    const now = new Date();
+    const now = new Date().toISOString().split('T')[0]; // Convert to YYYY-MM-DD string format
     const result = await db.insert(users).values({
       ...insertUser,
       isVerified: false,
@@ -840,7 +840,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createInterest(insertInterest: InsertInterest): Promise<Interest> {
-    const now = new Date();
+    const now = new Date().toISOString().split('T')[0]; // Format date as YYYY-MM-DD
     const result = await db.insert(interests).values({
       ...insertInterest,
       status: "pending",
@@ -866,7 +866,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const now = new Date();
+    const now = new Date().toISOString().split('T')[0]; // Format date as YYYY-MM-DD
     const result = await db.insert(messages).values({
       ...insertMessage,
       read: false,
@@ -1094,10 +1094,13 @@ export class DatabaseStorage implements IStorage {
       matchesRemaining = 9999; // Unlimited for matchmaker with dedicated service
     }
     
+    // Format date as YYYY-MM-DD string
+    const formattedExpiryDate = expiryDate.toISOString().split('T')[0];
+    
     const result = await db.update(users)
       .set({
         subscriptionPlan: plan,
-        subscriptionExpiry: expiryDate,
+        subscriptionExpiry: formattedExpiryDate,
         matchesRemaining
       })
       .where(eq(users.id, userId))
@@ -1134,7 +1137,7 @@ export class DatabaseStorage implements IStorage {
   
   // Notifications
   async createNotification(notification: InsertNotification): Promise<Notification> {
-    const now = new Date();
+    const now = new Date().toISOString().split('T')[0]; // Format date as YYYY-MM-DD
     const result = await db.insert(notifications)
       .values({
         ...notification,
@@ -1164,7 +1167,7 @@ export class DatabaseStorage implements IStorage {
   
   // Success stories
   async createSuccessStory(story: InsertSuccessStory): Promise<SuccessStory> {
-    const now = new Date();
+    const now = new Date().toISOString().split('T')[0]; // Format date as YYYY-MM-DD
     const result = await db.insert(successStories)
       .values({
         ...story,
