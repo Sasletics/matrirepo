@@ -579,9 +579,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.isAuthenticated()) return res.sendStatus(401);
       
       const userId = req.user!.id;
-      const recommendations = await storage.getRecommendedMatches(userId);
+      const userProfile = await storage.getCompleteProfile(userId);
+      if (!userProfile) {
+        return res.status(404).json({ message: "User profile not found" });
+      }
       
-      res.status(200).json(recommendations);
+      const allProfiles = await storage.getAllCompleteProfiles();
+      
+      // Filter out the user's own profile and get all profiles of opposite gender
+      const potentialMatches = allProfiles
+        .filter(profile => 
+          profile.user.id !== userId && 
+          profile.profile.gender !== userProfile.profile.gender
+        );
+      
+      // Calculate match percentage based on preferences and return matches with percentages
+      const matchesWithPercentages = potentialMatches.map(profile => {
+        const matchPercentage = storage.calculateMatchPercentage(userProfile, profile);
+        return { profile, matchPercentage };
+      });
+      
+      // Sort by match percentage (highest first)
+      matchesWithPercentages.sort((a, b) => b.matchPercentage - a.matchPercentage);
+      
+      // Return matches with their match percentages
+      res.status(200).json(matchesWithPercentages);
     } catch (error) {
       next(error);
     }

@@ -20,7 +20,7 @@ export default function MatchesPage() {
   const [activeTab, setActiveTab] = useState("recommended");
   
   // Fetch recommended matches
-  const { data: matches, isLoading: isMatchesLoading } = useQuery<CompleteProfile[]>({
+  const { data: matchesData, isLoading: isMatchesLoading } = useQuery<{profile: CompleteProfile, matchPercentage: number}[]>({
     queryKey: ["/api/matches"],
     enabled: !!user,
   });
@@ -131,13 +131,13 @@ export default function MatchesPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary/70" />
                   <span className="ml-2 text-muted-foreground">Finding your matches...</span>
                 </div>
-              ) : matches && matches.length > 0 ? (
+              ) : matchesData && matchesData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                  {matches.map((profile) => (
+                  {matchesData.map((match) => (
                     <ProfileCard
-                      key={profile.user.id}
-                      profile={profile}
-                      matchPercentage={Math.floor(Math.random() * 30) + 70} // This would be calculated properly in a real app
+                      key={match.profile.user.id}
+                      profile={match.profile}
+                      matchPercentage={match.matchPercentage}
                     />
                   ))}
                 </div>

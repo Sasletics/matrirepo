@@ -1277,7 +1277,7 @@ export class DatabaseStorage implements IStorage {
     const p1 = profile1.preferences;
     const p2 = profile2.profile;
     
-    // Age check
+    // Age check (10 points)
     if (p1.minAge && p1.maxAge) {
       totalPoints += 10;
       const age = this.calculateAge(p2.dateOfBirth);
@@ -1286,7 +1286,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Height check
+    // Height check (5 points)
     if (p1.minHeight && p1.maxHeight && p2.height) {
       totalPoints += 5;
       if (p2.height >= p1.minHeight && p2.height <= p1.maxHeight) {
@@ -1294,7 +1294,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Marital status check
+    // Marital status check (10 points)
     if (p1.maritalStatus && p1.maritalStatus.length > 0) {
       totalPoints += 10;
       if (p1.maritalStatus.includes(p2.maritalStatus)) {
@@ -1302,10 +1302,79 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Other match criteria - religion, community, education, etc.
-    // Implementation remains the same as MemStorage
+    // Religion check (15 points)
+    if (p1.religion && p1.religion.length > 0) {
+      totalPoints += 15;
+      if (p1.religion.includes(p2.religion)) {
+        points += 15;
+      }
+    }
     
-    return totalPoints > 0 ? Math.round((points / totalPoints) * 100) : 0;
+    // Community/Caste check (10 points)
+    if (p1.community && p1.community.length > 0 && p2.caste) {
+      totalPoints += 10;
+      if (p1.community.includes(p2.caste)) {
+        points += 10;
+      }
+    }
+    
+    // Mother tongue check (5 points)
+    if (p1.motherTongue && p1.motherTongue.length > 0) {
+      totalPoints += 5;
+      if (p1.motherTongue.includes(p2.motherTongue)) {
+        points += 5;
+      }
+    }
+    
+    // Location match - Same state (5 points)
+    if (p1.preferredStates && p1.preferredStates.length > 0) {
+      totalPoints += 5;
+      if (p1.preferredStates.includes(p2.state)) {
+        points += 5;
+      }
+    }
+    
+    // Diet preferences (5 points)
+    if (p1.diet && p1.diet.length > 0 && p2.diet) {
+      totalPoints += 5;
+      if (p1.diet.includes(p2.diet)) {
+        points += 5;
+      }
+    }
+    
+    // Education level (10 points)
+    if (p1.educationLevel && p1.educationLevel.length > 0 && profile2.education) {
+      totalPoints += 10;
+      // Check if the highest education level of profile2 is in the preferred list
+      if (p1.educationLevel.includes(profile2.education.highestEducation)) {
+        points += 10;
+      }
+    }
+    
+    // Occupation check (5 points)
+    if (p1.occupation && p1.occupation.length > 0 && profile2.career) {
+      totalPoints += 5;
+      if (p1.occupation.includes(profile2.career.occupation)) {
+        points += 5;
+      }
+    }
+    
+    // Calculate initial match percentage based on preferences
+    const preferenceScore = totalPoints > 0 ? Math.round((points / totalPoints) * 100) : 0;
+    
+    // If both profiles have horoscope data, include horoscope compatibility (weighted at 30% of total)
+    let horoscopeScore = 0;
+    if (profile1.horoscope && profile2.horoscope) {
+      const horoscopeCompatibility = this.matchHoroscopes(profile1.user.id, profile2.user.id);
+      horoscopeScore = horoscopeCompatibility;
+    }
+    
+    // Combine preference match (70%) and horoscope match (30%) if horoscope data exists
+    const finalScore = horoscopeScore > 0 
+      ? Math.round((preferenceScore * 0.7) + (horoscopeScore * 0.3))
+      : preferenceScore;
+      
+    return finalScore;
   }
   
   private calculateAge(dob: Date): number {
