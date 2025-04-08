@@ -9,9 +9,8 @@ import {
   insertFamilySchema,
   insertPreferencesSchema
 } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
@@ -100,7 +99,10 @@ type FamilyFormValues = z.infer<typeof familyFormSchema>;
 type PreferencesFormValues = z.infer<typeof preferencesFormSchema>;
 
 export default function CreateProfilePage() {
-  const { user } = useAuth();
+  const { data: user } = useQuery({
+    queryKey: ["/api/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
   const { toast } = useToast();
   const [, navigate] = useLocation();
   
