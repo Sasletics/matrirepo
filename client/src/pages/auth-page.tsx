@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { insertUserSchema } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
@@ -52,6 +52,19 @@ export default function AuthPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
+  // Check if user is already logged in
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["/api/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
+  
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && !isLoading) {
+      navigate("/");
+    }
+  }, [user, isLoading, navigate]);
+  
   // Login form
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -84,7 +97,8 @@ export default function AuthPage() {
         title: "Login successful",
         description: `Welcome back, ${user.username}!`,
       });
-      navigate("/");
+      // Use setTimeout to ensure the query client has time to update
+      setTimeout(() => navigate("/"), 300);
     },
     onError: (error: Error) => {
       toast({
@@ -107,7 +121,8 @@ export default function AuthPage() {
         title: "Registration successful",
         description: "Your account has been created successfully.",
       });
-      navigate("/");
+      // Use setTimeout to ensure the query client has time to update
+      setTimeout(() => navigate("/"), 300);
     },
     onError: (error: Error) => {
       toast({
