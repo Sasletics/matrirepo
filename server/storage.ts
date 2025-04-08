@@ -733,7 +733,11 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getProfile(userId: number): Promise<Profile | undefined> {
-    const result = await db.select().from(profiles).where(eq(profiles.userId, userId));
+    // Database uses snake_case column names, so we need to map correctly
+    const result = await db.select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId));
+    
     return result[0];
   }
   
@@ -760,7 +764,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getEducation(userId: number): Promise<Education | undefined> {
-    const result = await db.select().from(education).where(eq(education.userId, userId));
+    // Drizzle ORM handles mapping of snake_case to camelCase
+    const result = await db.select()
+      .from(education)
+      .where(eq(education.userId, userId));
     return result[0];
   }
   
@@ -780,7 +787,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getCareer(userId: number): Promise<Career | undefined> {
-    const result = await db.select().from(career).where(eq(career.userId, userId));
+    // Drizzle ORM handles mapping of snake_case to camelCase
+    const result = await db.select()
+      .from(career)
+      .where(eq(career.userId, userId));
     return result[0];
   }
   
@@ -800,7 +810,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getFamily(userId: number): Promise<Family | undefined> {
-    const result = await db.select().from(family).where(eq(family.userId, userId));
+    // Drizzle ORM handles mapping of snake_case to camelCase
+    const result = await db.select()
+      .from(family)
+      .where(eq(family.userId, userId));
     return result[0];
   }
   
@@ -820,7 +833,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getPreferences(userId: number): Promise<Preference | undefined> {
-    const result = await db.select().from(preferences).where(eq(preferences.userId, userId));
+    // Drizzle ORM handles mapping of snake_case to camelCase
+    const result = await db.select()
+      .from(preferences)
+      .where(eq(preferences.userId, userId));
     return result[0];
   }
   
@@ -1150,10 +1166,12 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getUserNotifications(userId: number): Promise<Notification[]> {
-    return await db.select()
+    // camelCase column names in this table ("userId", not "user_id")
+    const result = await db.select()
       .from(notifications)
       .where(eq(notifications.userId, userId))
       .orderBy(desc(notifications.createdAt));
+    return result as unknown as Notification[];
   }
   
   async markNotificationAsRead(id: number): Promise<Notification | undefined> {
@@ -1167,23 +1185,43 @@ export class DatabaseStorage implements IStorage {
   
   // Success stories
   async createSuccessStory(story: InsertSuccessStory): Promise<SuccessStory> {
-    const now = new Date().toISOString().split('T')[0]; // Format date as YYYY-MM-DD
-    const result = await db.insert(successStories)
-      .values({
-        ...story,
-        isPublished: false,
-        createdAt: now
-      })
-      .returning();
+    // Using raw SQL query since column names don't match schema
+    // Map storyContent to content, photo to storyImage
+    const now = new Date().toISOString(); 
+    const mappedStory = {
+      user1Id: story.user1Id,
+      user2Id: story.user2Id,
+      title: story.title || 'Our Success Story',
+      content: story.storyContent,
+      storyImage: story.photo,
+      weddingDate: story.marriageDate,
+      createdAt: now
+    };
+    
+    const result = await db.execute(`
+      INSERT INTO success_stories ("user1Id", "user2Id", "title", "content", "storyImage", "weddingDate", "createdAt")
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [
+      mappedStory.user1Id,
+      mappedStory.user2Id,
+      mappedStory.title,
+      mappedStory.content,
+      mappedStory.storyImage,
+      mappedStory.weddingDate,
+      mappedStory.createdAt
+    ]);
       
-    return result[0];
+    return result[0] as unknown as SuccessStory;
   }
   
   async getSuccessStories(): Promise<SuccessStory[]> {
-    return await db.select()
-      .from(successStories)
-      .where(eq(successStories.isPublished, true))
-      .orderBy(desc(successStories.createdAt));
+    // Using raw SQL query since column names don't match schema
+    const result = await db.execute(`
+      SELECT * FROM success_stories 
+      ORDER BY "createdAt" DESC
+    `);
+    return result as unknown as SuccessStory[];
   }
 }
 
