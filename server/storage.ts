@@ -1144,33 +1144,48 @@ export class DatabaseStorage implements IStorage {
   
   // Notifications
   async createNotification(notification: InsertNotification): Promise<Notification> {
-    const now = new Date().toISOString().split('T')[0]; // Format date as YYYY-MM-DD
-    const result = await db.insert(notifications)
-      .values({
-        ...notification,
-        read: false,
-        createdAt: now
-      })
-      .returning();
+    const now = new Date().toISOString(); // Format date as ISO string
+    
+    // Use direct SQL to avoid column name mismatches
+    const result = await db.execute(sql`
+      INSERT INTO notifications (
+        "userId", 
+        "type", 
+        "content", 
+        "relatedUserId", 
+        "read", 
+        "createdAt"
+      )
+      VALUES (
+        ${notification.userId}, 
+        ${notification.type}, 
+        ${notification.content}, 
+        ${notification.relatedUserId}, 
+        false, 
+        ${now}
+      )
+      RETURNING *
+    `);
       
-    return result[0];
+    return result[0] as unknown as Notification;
   }
   
   async getUserNotifications(userId: number): Promise<Notification[]> {
     // Using direct SQL to avoid naming mismatch issues
-    const result = await db.select()
-      .from(notifications)
-      .where(sql`${notifications.userId} = ${userId}`)
-      .orderBy(desc(notifications.createdAt));
+    const result = await db.execute(sql`
+      SELECT * FROM notifications
+      WHERE "userId" = ${userId}
+      ORDER BY "createdAt" DESC
+    `);
     return result as unknown as Notification[];
   }
   
   async markNotificationAsRead(id: number): Promise<Notification | undefined> {
-    // Using direct SQL query for consistency
+    // Using direct SQL query for consistency with proper quoted column names
     const result = await db.execute(sql`
       UPDATE notifications
-      SET read = true
-      WHERE id = ${id}
+      SET "read" = true
+      WHERE "id" = ${id}
       RETURNING *
     `);
       
