@@ -1,6 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
-import { useQuery } from "@tanstack/react-query";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
@@ -8,12 +7,14 @@ import SearchPage from "./pages/search-page";
 import MatchesPage from "./pages/matches-page";
 import ProfilePage from "./pages/profile-page";
 import CreateProfilePage from "./pages/create-profile-page";
-import { getQueryFn } from "./lib/queryClient";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
+import SubscriptionPage from "./pages/subscription-page";
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "./lib/queryClient";
 
-// Simple protected component wrapper
-function ProtectedComponent({ component: Component }: { component: () => React.JSX.Element }) {
+// Protected route wrapper using direct API call
+function ProtectedRoute({ component: Component }: { component: () => React.JSX.Element }) {
   const [, navigate] = useLocation();
   const { data: user, isLoading } = useQuery({
     queryKey: ["/api/user"],
@@ -42,35 +43,24 @@ function ProtectedComponent({ component: Component }: { component: () => React.J
   return <Component />;
 }
 
-function Router() {
-  const [location] = useLocation();
-  
-  // Don't use AuthProvider for authentication page
-  if (location === "/auth") {
-    return (
-      <Switch>
-        <Route path="/auth" component={AuthPage} />
-      </Switch>
-    );
-  }
-  
-  // Use AuthProvider for protected routes
-  return (
-    <Switch>
-      <Route path="/" component={() => <ProtectedComponent component={HomePage} />} />
-      <Route path="/search" component={() => <ProtectedComponent component={SearchPage} />} />
-      <Route path="/matches" component={() => <ProtectedComponent component={MatchesPage} />} />
-      <Route path="/profile/:id" component={() => <ProtectedComponent component={ProfilePage} />} />
-      <Route path="/create-profile" component={() => <ProtectedComponent component={CreateProfilePage} />} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
 function App() {
   return (
     <>
-      <Router />
+      <Switch>
+        {/* Public route */}
+        <Route path="/auth" component={AuthPage} />
+        
+        {/* Protected routes */}
+        <Route path="/" component={() => <ProtectedRoute component={HomePage} />} />
+        <Route path="/search" component={() => <ProtectedRoute component={SearchPage} />} />
+        <Route path="/matches" component={() => <ProtectedRoute component={MatchesPage} />} />
+        <Route path="/profile/:id" component={() => <ProtectedRoute component={ProfilePage} />} />
+        <Route path="/create-profile" component={() => <ProtectedRoute component={CreateProfilePage} />} />
+        <Route path="/subscription" component={() => <ProtectedRoute component={SubscriptionPage} />} />
+        
+        {/* Fallback route */}
+        <Route component={NotFound} />
+      </Switch>
       <Toaster />
     </>
   );
